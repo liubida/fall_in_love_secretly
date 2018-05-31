@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fall In Love Secretly</title>
+  <link rel="stylesheet" href="lib/css/bootstrap.min.css">
+
+  <script src="https://unpkg.com/vue"></script>
+  <script src="https://cdn.bootcss.com/vue-resource/1.5.0/vue-resource.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@0.12.0/dist/axios.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lodash@4.13.1/lodash.min.js"></script>
+  <script src="lib/nebPay.js"></script>
+</head>
+<body>
+    <div id="app" class="contenner-fluid container">
+        <div class="logo">
+            <div><h2>Fall In Love Secretly</h2></div>
+            <!--div class="img logo_rotate"> <img src="img/logo.png" alt=""> </div-->
+        </div>
+        <div id="extension_note" v-if="!extension_installed">
+            <p>说明: 你需要安装 <a target="_blank" href="https://github.com/ChengOrangeJu/WebExtensionWallet">WebExtensionWallet</a> 才能参与到
+               <strong>Fall-In-Love-Secretly</strong></p>
+            <p>如果已经安装 WebExtensionWallet, 请点击<button v-on:click='checkExtensionWallet'>刷新</button></p>
+        </div>
+        <hr/>
+        <p>告诉 NAS, 你暗恋的那个他/她的姓名, 生日...  </p>
+        <p>也许有一天, NAS 会告诉你们, 你们可以相爱了...  </p>
+        <hr/>
+        <div>
+            <h4><p>我的姓名: <input v-model="a_name"/></p></h4>
+            <h4><p>我的生日(格式: 2018.01.01): <input v-model="a_birthday"/></p></h4>
+            <hr/>
+            <h4><p>他/她的姓名: <input v-model="b_name"/></p></h4>
+            <h4><p>他/她的生日(格式: 2018.01.01): <input v-model="b_birthday"/></p></h4>
+            <hr/>
+            <button v-on:click='ask'>Fall-In-Love</button>
+            <p v-if="tip">{{ tip }} </p>
+            <h4 v-if="response"><p>爱神的回答: {{ response }} </p></h4>
+        </div>
+    </div>
+    <script>
+      var NebPay = require("nebpay");
+      var nebPay = new NebPay();
+
+      var app = new Vue({
+        el: '#app',
+        data: {
+            extension_installed: false,
+            a_name: '韩梅梅',
+            a_birthday: '2018.01.01',
+            b_name: '李磊',
+            b_birthday: '2018.01.02',
+            tip: '',
+            to_address: 'n1sB3CXVkJfYb3iKnV95Q59XMw1hbMrEqGi',
+			response: '',
+        },
+        //watch: {
+        //  // 如果 `question` 发生改变，这个函数就会运行
+        //  question: function (newQuestion, oldQuestion) {
+        //      this.answer = 'Waiting for you to stop typing...'
+        //      this.debouncedGetAnswer()
+        //  },
+        //},
+        created: function () {
+            let self = this;
+        },
+        computed: { },
+        methods: {
+            ask: function() {
+			    var self = this;
+                self.tip = '';
+
+                if (!(self.a_name && self.a_birthday && self.b_name && self.b_birthday)) {
+                    self.tip = '自己和暗恋之人的姓名和生日都要输入';
+                    return;
+                }
+                var regex = /\d{4}\.\d{2}\.\d{2}/g 
+                if (!regex.test(self.a_birthday)) {
+                    self.tip = '自己的生日输入的格式有误';
+                    return;
+                }
+                console.log(self.b_birthday);
+                regex = /\d{4}\.\d{2}\.\d{2}/g 
+                if (!regex.test(self.b_birthday)) {
+                    self.tip = '暗恋之人的生日输入的格式有误';
+                    return;
+                }
+
+                var value = "0";
+                var callFunction = "ask";
+                var callArgs = [self.a_name, self.a_birthday, self.b_name, self.b_birthday]; 
+                var callArgs = '["' + self.a_name + '", "' + self.a_birthday + '", "' + self.b_name + '", "' + self.b_birthday + '"]'
+                //nebPay.call(self.to_address, value, callFunction, callArgs, { 
+                //    listener: self.callbackBuy 
+                nebPay.simulateCall(self.to_address, value, callFunction, callArgs, {    //使用nebpay的simulateCall接口去执行ask查询, 模拟执行.不发送交易,不上链
+                    listener: self.callbackBuy //指定回调函数
+                });
+			},
+			callbackBuy: function(response) {
+				var self = this;
+				self.response = JSON.stringify(response.result);
+                return;
+            },
+            checkExtensionWallet: function() {
+                if (typeof(webExtensionWallet) === 'undefined') {
+                    this.extension_installed = false
+                } else {
+                    this.extension_installed = true
+                }
+            },
+            showTime: function() {
+                var dt = new Date(); // 得到当前时间
+                var y = dt.getFullYear(); // 当前年份
+                var m = dt.getMonth() + 1; // 当前月份，getMonth 返回值是 0-11 对应 1-12月，因此全部加1
+                var d = dt.getDate();
+
+                var h = dt.getHours();
+                if(h<10) h='0' + h;
+                var i = dt.getMinutes();
+                if(i<10) i='0' + i;
+                var s = dt.getSeconds();
+                if(s<10) s='0' + s;
+
+                //this.cur_time = y + '.' + m + '.' + d + ' ' + h + ':' + i + ':' + s;  
+            },
+            getAnswer: function () {
+              if (this.question.indexOf('?') === -1) {
+                this.answer = 'Questions usually contain a question mark. ;-)'
+                return
+              }
+              this.answer = 'Thinking...'
+              var vm = this
+              axios.get('https://yesno.wtf/api')
+                .then(function (response) {
+                  vm.answer = _.capitalize(response.data.answer)
+                })
+                .catch(function (error) {
+                  vm.answer = 'Error! Could not reach the API. ' + error
+                })
+            },
+        },
+      })
+    </script>
+</body>
+</html>
+
